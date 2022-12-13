@@ -969,6 +969,15 @@ void MapOptimization::cornerOptimization(int iterCount) {
         float y2 = cy - 0.1 * matV1(0, 1);
         float z2 = cz - 0.1 * matV1(0, 2);
 
+        /*
+        
+        If,
+        x0 = x, y0 = y, z0 = z
+        matV1(0, 0) = vx, matV1(0, 1) = vy, matV1(0, 2) = vz,
+
+        a012 = 0.1 * sqrt( (vy*(x-cx) - vx*(y-cy))^2 + (vz*(x-cx) - vx*(z-cz))^2 + (vz*(y-cy) - vy*(z-cz))^2 )
+        
+        */
         float a012 = sqrt(((x0 - x1) * (y0 - y2) - (x0 - x2) * (y0 - y1)) *
                               ((x0 - x1) * (y0 - y2) - (x0 - x2) * (y0 - y1)) +
                           ((x0 - x1) * (z0 - z2) - (x0 - x2) * (z0 - z1)) *
@@ -976,6 +985,7 @@ void MapOptimization::cornerOptimization(int iterCount) {
                           ((y0 - y1) * (z0 - z2) - (y0 - y2) * (z0 - z1)) *
                               ((y0 - y1) * (z0 - z2) - (y0 - y2) * (z0 - z1)));
 
+        // l12 = 0.2 * sqrt( vx^2 + vy^2 + vz^2 )
         float l12 = sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2) +
                          (z1 - z2) * (z1 - z2));
 
@@ -1393,18 +1403,50 @@ void MapOptimization::run() {
       timeLaserOdometry = association.laser_odometry.header.stamp.toSec();
       timeLastProcessing = timeLaserOdometry;
 
+      // Take last position[x,y,z,[quat]] of featureAssociation and transform it to [x,y,z,yaw,pitch,roll]
       OdometryToTransform(association.laser_odometry, transformSum);
 
+      /*
+      transformSum[] is the transformation from the Lidar coordinate system to the world coordinate system 
+      at the end point of the current frame calculated by the featureAssociation module $T_{cur-end}^{world}$
+
+      transformBefMapped[] is the transformation matrix $T_{bef-map}^{world}$ in the world coordinate system calculated by Odometry before mapping
+      
+      Here to calculate transformTobeMapped[]
+
+          $T_{tobe}^{world}$ = $T_{cur-end}^{world}$ * ($T_{bef-map}^{world}$)^-1 * $T_{aft_map}^{world}$
+
+      https://gutsgwh1997.github.io/2020/08/01/LeGo-LOAM%E4%B8%AD%E7%9A%84transformFusion%E8%8A%82%E7%82%B9-%E7%9B%B8%E5%85%B3%E6%95%B0%E5%AD%A6%E5%85%AC%E5%BC%8F%E6%8E%A8%E5%AF%BC/
+
+      */
       transformAssociateToMap();
 
+      // Select KeyFrames in a radius to current location to get look-up PointClouds and DownSample them
       extractSurroundingKeyFrames();
 
+      // Downsample laserCloud*Last PointClouds got from featureAssociation
       downsampleCurrentScan();
 
+      /* 
+      LM-Optimization Step
+
+      First find 5 slosest point to laserCloud*Last point and if variance of theese points is less than a value*
+      *--Couldn't decode the exact operation yet but it dismiss if variance is high--
+      add them another point cloud (both corner, surf and oitliers at same cloud this time)
+      then perform 1 step LM-Optimization similar to featureAssociation but using $T_{bef-map}^{world}$
+
+      Finally update Transform Matrices;
+
+      $T_{bef-map}^{world}$ = $T_{cur-end}^{world}$
+      $T_{aft_map}^{world}$ = $T_{tobe}^{world}$
+      
+      */
       scan2MapOptimization();
 
+      // Update gtsam and isam and extract key frame and save it to *CloudKeyFrames
       saveKeyFramesAndFactor();
 
+      // Perform Loop Closure
       correctPoses();
 
       publishTF();

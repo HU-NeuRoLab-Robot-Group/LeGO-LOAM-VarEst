@@ -18,7 +18,6 @@
 
     <node pkg="lego_loam_bor" type="lego_loam_bor"    name="lego_loam_bor"    output="screen" >
        <remap from="/lidar_points" to="$(arg lidar_topic)"/>
-       <remap from="/imu/data" to="$(arg imu_topic)"/>
        <param name="rosbag"      value="$(arg rosbag)" type="string" />
        <param name="lidar_topic" value="$(arg lidar_topic)" type="string" />
     </node>
