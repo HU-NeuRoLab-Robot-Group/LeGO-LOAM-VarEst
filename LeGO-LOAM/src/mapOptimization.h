@@ -78,6 +78,9 @@ class MapOptimization {
   ros::Publisher pubIcpKeyFrames;
   ros::Publisher pubRecentKeyFrames;
 
+  ros::Publisher pubCovMapCornerCloud;
+  ros::Publisher pubCovMapSurfCloud;
+
   nav_msgs::Odometry odomAftMapped;
   tf::StampedTransform aftMappedTrans;
   tf::TransformBroadcaster tfBroadcaster;
@@ -127,6 +130,11 @@ class MapOptimization {
       laserCloudSurfTotalLastDS;  // downsampled corner featuer set from
       // odoOptimization
 
+  pcl::PointCloud<PointType>::Ptr
+      CovMapCornerCloudDS;  // downsampled set for cov_est corner message
+  pcl::PointCloud<PointType>::Ptr
+      CovMapSurfCloudDS;  // downsampled set for cov_est surf message
+
   pcl::PointCloud<PointType>::Ptr laserCloudOri;
   pcl::PointCloud<PointType>::Ptr coeffSel;
 
@@ -172,6 +180,9 @@ class MapOptimization {
   pcl::VoxelGrid<PointType>
       downSizeFilterGlobalMapKeyFrames;  // for global map visualization
 
+  pcl::VoxelGrid<PointType> downSizeCovMapCornerCloud; // for downsize cov estimation corner map cloud
+  pcl::VoxelGrid<PointType> downSizeCovMapSurfCloud; // for downsize cov estimation surf map cloud
+
   double timeLaserOdometry;
   double timeLastGloalMapPublish;
 
@@ -214,6 +225,8 @@ class MapOptimization {
   int latestFrameIDLoopCloure;
 
   bool aLoopIsClosed;
+
+  bool CovMapUpdated;
 
   float cRoll, sRoll, cPitch, sPitch, cYaw, sYaw, tX, tY, tZ;
   float ctRoll, stRoll, ctPitch, stPitch, ctYaw, stYaw, tInX, tInY, tInZ;

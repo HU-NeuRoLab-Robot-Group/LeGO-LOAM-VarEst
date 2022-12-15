@@ -63,6 +63,12 @@ MapOptimization::MapOptimization(ros::NodeHandle &node,
   pubRecentKeyFrames =
       nh.advertise<sensor_msgs::PointCloud2>("/recent_cloud", 2);
 
+  pubCovMapCornerCloud =
+      nh.advertise<sensor_msgs::PointCloud2>("/cov_map_corner_cloud", 2);
+  pubCovMapSurfCloud =
+      nh.advertise<sensor_msgs::PointCloud2>("/cov_map_surf_cloud", 2);
+
+
   downSizeFilterCorner.setLeafSize(0.2, 0.2, 0.2);
   downSizeFilterSurf.setLeafSize(0.4, 0.4, 0.4);
   downSizeFilterOutlier.setLeafSize(0.4, 0.4, 0.4);
@@ -76,6 +82,10 @@ MapOptimization::MapOptimization(ros::NodeHandle &node,
   downSizeFilterGlobalMapKeyPoses.setLeafSize(1.0, 1.0, 1.0);
   // for global map visualization
   downSizeFilterGlobalMapKeyFrames.setLeafSize(0.4, 0.4, 0.4);
+
+  // for covariance estimation map
+  downSizeCovMapCornerCloud.setLeafSize(0.2, 0.2, 0.2);
+  downSizeCovMapSurfCloud.setLeafSize(0.4, 0.4, 0.4);
 
   odomAftMapped.header.frame_id = "/camera_init";
   odomAftMapped.child_frame_id = "/aft_mapped";
@@ -108,7 +118,7 @@ MapOptimization::MapOptimization(ros::NodeHandle &node,
   allocateMemory();
 
   _publish_global_thread = std::thread(&MapOptimization::publishGlobalMapThread, this);
-  _loop_closure_thread = std::thread(&MapOptimization::loopClosureThread, this);
+  //_loop_closure_thread = std::thread(&MapOptimization::loopClosureThread, this);
   _run_thread = std::thread(&MapOptimization::run, this);
 
 }
@@ -164,6 +174,9 @@ void MapOptimization::allocateMemory() {
   laserCloudSurfFromMap.reset(new pcl::PointCloud<PointType>());
   laserCloudCornerFromMapDS.reset(new pcl::PointCloud<PointType>());
   laserCloudSurfFromMapDS.reset(new pcl::PointCloud<PointType>());
+
+  CovMapCornerCloudDS.reset(new pcl::PointCloud<PointType>());
+  CovMapSurfCloudDS.reset(new pcl::PointCloud<PointType>());
 
   nearHistoryCornerKeyFrameCloud.reset(new pcl::PointCloud<PointType>());
   nearHistoryCornerKeyFrameCloudDS.reset(new pcl::PointCloud<PointType>());
@@ -230,6 +243,7 @@ void MapOptimization::publishGlobalMapThread()
   }
 }
 
+/*
 void MapOptimization::loopClosureThread()
 {
   while(ros::ok())
@@ -241,7 +255,7 @@ void MapOptimization::loopClosureThread()
     }
   }
 }
-
+*/
 void MapOptimization::transformAssociateToMap() {
   float x1 = cos(transformSum[1]) * (transformBefMapped[3] - transformSum[3]) -
              sin(transformSum[1]) * (transformBefMapped[5] - transformSum[5]);
@@ -581,7 +595,7 @@ void MapOptimization::publishGlobalMap() {
   globalMapKeyFrames->clear();
   //globalMapKeyFramesDS->clear();
 }
-
+/*
 bool MapOptimization::detectLoopClosure() {
   latestSurfKeyFrameCloud->clear();
   nearHistorySurfKeyFrameCloud->clear();
@@ -698,9 +712,8 @@ void MapOptimization::performLoopClosure() {
     cloudMsgTemp.header.frame_id = "/camera_init";
     pubIcpKeyFrames.publish(cloudMsgTemp);
   }
-  /*
-          get pose constraint
-          */
+  
+  //        get pose constraint
   float x, y, z, roll, pitch, yaw;
   Eigen::Affine3f correctionCameraFrame;
   correctionCameraFrame =
@@ -727,9 +740,9 @@ void MapOptimization::performLoopClosure() {
   Vector6 << noiseScore, noiseScore, noiseScore, noiseScore, noiseScore,
       noiseScore;
   auto constraintNoise = noiseModel::Diagonal::Variances(Vector6);
-  /*
-          add constraints
-          */
+  
+  //        add constraints
+
   std::lock_guard<std::mutex> lock(mtx);
   gtSAMgraph.add(
       BetweenFactor<Pose3>(latestFrameIDLoopCloure, closestHistoryFrameID,
@@ -740,6 +753,7 @@ void MapOptimization::performLoopClosure() {
 
   aLoopIsClosed = true;
 }
+*/
 
 void MapOptimization::extractSurroundingKeyFrames() {
   if (cloudKeyPoses3D->points.empty() == true) return;
@@ -1345,6 +1359,14 @@ void MapOptimization::saveKeyFramesAndFactor() {
   cornerCloudKeyFrames.push_back(thisCornerKeyFrame);
   surfCloudKeyFrames.push_back(thisSurfKeyFrame);
   outlierCloudKeyFrames.push_back(thisOutlierKeyFrame);
+
+  *laserCloudCornerFromMap += *transformPointCloud(laserCloudCornerLastDS,&cloudKeyPoses6D->back());
+  *laserCloudSurfFromMap += *transformPointCloud(laserCloudSurfLastDS,&cloudKeyPoses6D->back());
+  *laserCloudSurfFromMap += *transformPointCloud(laserCloudOutlierLastDS,&cloudKeyPoses6D->back());
+
+  CovMapUpdated = 1;
+
+
 }
 
 void MapOptimization::correctPoses() {
@@ -1378,6 +1400,32 @@ void MapOptimization::correctPoses() {
 }
 
 void MapOptimization::clearCloud() {
+
+  if(CovMapUpdated){  
+    CovMapCornerCloudDS->clear();
+    downSizeCovMapCornerCloud.setInputCloud(laserCloudCornerFromMap);
+    downSizeCovMapCornerCloud.filter(*CovMapCornerCloudDS);
+    if (pubCovMapCornerCloud.getNumSubscribers() != 0) {
+      sensor_msgs::PointCloud2 cloudMsgcornerTemp;
+      pcl::toROSMsg(*CovMapCornerCloudDS, cloudMsgcornerTemp);
+      cloudMsgcornerTemp.header.stamp = ros::Time().fromSec(timeLaserOdometry);
+      cloudMsgcornerTemp.header.frame_id = "/camera_init";
+      pubCovMapCornerCloud.publish(cloudMsgcornerTemp);
+    }
+    //printf ("corner size: %lu", CovMapCornerCloudDS->points.size());
+
+    CovMapSurfCloudDS->clear();
+    downSizeCovMapSurfCloud.setInputCloud(laserCloudSurfFromMap);
+    downSizeCovMapSurfCloud.filter(*CovMapSurfCloudDS);
+    if (pubCovMapSurfCloud.getNumSubscribers() != 0) {
+      sensor_msgs::PointCloud2 cloudMsgsurfTemp;
+      pcl::toROSMsg(*CovMapSurfCloudDS, cloudMsgsurfTemp);
+      cloudMsgsurfTemp.header.stamp = ros::Time().fromSec(timeLaserOdometry);
+      cloudMsgsurfTemp.header.frame_id = "/camera_init";
+      pubCovMapSurfCloud.publish(cloudMsgsurfTemp);
+    }
+    //printf ("surf size: %lu", CovMapSurfCloudDS->points.size());
+  }
   laserCloudCornerFromMap->clear();
   laserCloudSurfFromMap->clear();
   laserCloudCornerFromMapDS->clear();
@@ -1447,7 +1495,7 @@ void MapOptimization::run() {
       saveKeyFramesAndFactor();
 
       // Perform Loop Closure
-      correctPoses();
+      //correctPoses();
 
       publishTF();
 
