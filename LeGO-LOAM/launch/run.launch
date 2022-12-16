@@ -22,4 +22,7 @@
        <param name="lidar_topic" value="$(arg lidar_topic)" type="string" />
     </node>
 
+    <node pkg="lego_loam_bor" type="covarianceEstimation"    name="covarianceEstimation"    output="screen" >
+    </node>
+
 </launch>

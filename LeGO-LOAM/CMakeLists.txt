@@ -51,6 +51,13 @@ add_executable(lego_loam_bor
     src/transformFusion.cpp
     src/main.cpp)
 
+add_executable(covarianceEstimation
+    src/covarianceEstimation.cpp
+)
+
 add_dependencies(lego_loam_bor ${catkin_EXPORTED_TARGETS} cloud_msgs_gencpp)
 target_link_libraries(lego_loam_bor ${catkin_LIBRARIES} ${PCL_LIBRARIES} gtsam)
+
+add_dependencies(covarianceEstimation ${catkin_EXPORTED_TARGETS} cloud_msgs_gencpp)
+target_link_libraries(covarianceEstimation ${catkin_LIBRARIES} ${PCL_LIBRARIES} gtsam)
 
