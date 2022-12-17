@@ -121,7 +121,7 @@ void FeatureAssociation::initializationValue() {
   systemInitCount = 0;
   systemInited = false;
 
-  skipFrameNum = 1;
+  skipFrameNum = 0; //0 original
 
   for (int i = 0; i < 6; ++i) {
     transformCur[i] = 0;

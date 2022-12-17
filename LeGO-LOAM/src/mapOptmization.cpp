@@ -118,7 +118,7 @@ MapOptimization::MapOptimization(ros::NodeHandle &node,
   allocateMemory();
 
   _publish_global_thread = std::thread(&MapOptimization::publishGlobalMapThread, this);
-  //_loop_closure_thread = std::thread(&MapOptimization::loopClosureThread, this);
+  _loop_closure_thread = std::thread(&MapOptimization::loopClosureThread, this);
   _run_thread = std::thread(&MapOptimization::run, this);
 
 }
@@ -243,7 +243,7 @@ void MapOptimization::publishGlobalMapThread()
   }
 }
 
-/*
+
 void MapOptimization::loopClosureThread()
 {
   while(ros::ok())
@@ -255,7 +255,7 @@ void MapOptimization::loopClosureThread()
     }
   }
 }
-*/
+
 void MapOptimization::transformAssociateToMap() {
   float x1 = cos(transformSum[1]) * (transformBefMapped[3] - transformSum[3]) -
              sin(transformSum[1]) * (transformBefMapped[5] - transformSum[5]);
@@ -595,7 +595,7 @@ void MapOptimization::publishGlobalMap() {
   globalMapKeyFrames->clear();
   //globalMapKeyFramesDS->clear();
 }
-/*
+
 bool MapOptimization::detectLoopClosure() {
   latestSurfKeyFrameCloud->clear();
   nearHistorySurfKeyFrameCloud->clear();
@@ -753,7 +753,7 @@ void MapOptimization::performLoopClosure() {
 
   aLoopIsClosed = true;
 }
-*/
+
 
 void MapOptimization::extractSurroundingKeyFrames() {
   if (cloudKeyPoses3D->points.empty() == true) return;
@@ -1412,7 +1412,6 @@ void MapOptimization::clearCloud() {
       cloudMsgcornerTemp.header.frame_id = "/camera_init";
       pubCovMapCornerCloud.publish(cloudMsgcornerTemp);
     }
-    //printf ("corner size: %lu", CovMapCornerCloudDS->points.size());
 
     CovMapSurfCloudDS->clear();
     downSizeCovMapSurfCloud.setInputCloud(laserCloudSurfFromMap);
@@ -1424,7 +1423,6 @@ void MapOptimization::clearCloud() {
       cloudMsgsurfTemp.header.frame_id = "/camera_init";
       pubCovMapSurfCloud.publish(cloudMsgsurfTemp);
     }
-    //printf ("surf size: %lu", CovMapSurfCloudDS->points.size());
   }
   laserCloudCornerFromMap->clear();
   laserCloudSurfFromMap->clear();
@@ -1495,7 +1493,7 @@ void MapOptimization::run() {
       saveKeyFramesAndFactor();
 
       // Perform Loop Closure
-      //correctPoses();
+      correctPoses();
 
       publishTF();
 
