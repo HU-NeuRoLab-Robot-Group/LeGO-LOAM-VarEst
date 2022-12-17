@@ -20,6 +20,8 @@ class CovarianceEstimation{
         void allocateMemory();
 
         ros::Publisher pubOdometryWithCovariance;
+        ros::Publisher pubTestCloudCorner;
+        ros::Publisher pubTestCloudSurf;
 
         ros::Subscriber subCovMapCornerCloud;
         ros::Subscriber subCovMapSurfCloud;
@@ -43,6 +45,9 @@ class CovarianceEstimation{
         pcl::PointCloud<PointType>::Ptr LastCornerCloud;
         pcl::PointCloud<PointType>::Ptr LastSurfCloud;
 
+        pcl::PointCloud<PointType>::Ptr TransformedCornerCloud;
+        pcl::PointCloud<PointType>::Ptr TransformedSurfCloud;
+
         bool NewLastCornerCloud = 0;
         bool NewLastSurfCloud = 0;
 
@@ -59,6 +64,7 @@ class CovarianceEstimation{
 
         bool ValidateTimestamps();
         void CalculateCovariance();
+        pcl::PointCloud<PointType>::Ptr transformPointCloud(pcl::PointCloud<PointType>::Ptr cloudIn, PointTypePose *transformIn);
 
 
 
