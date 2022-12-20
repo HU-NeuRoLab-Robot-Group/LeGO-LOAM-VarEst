@@ -2,6 +2,7 @@
 #define COVARIANCEESTIMATION_H
 
 #include "lego_loam/utility.h"
+#include "lego_loam/nanoflann_pcl.h"
 
 class CovarianceEstimation{
 
@@ -52,6 +53,7 @@ class CovarianceEstimation{
         bool NewLastSurfCloud = 0;
 
         nav_msgs::Odometry LastOdometry;
+        nav_msgs::Odometry LastOdometryWithCovariance;
 
         bool NewLastOdometry = 0;
 
@@ -64,9 +66,31 @@ class CovarianceEstimation{
 
         bool ValidateTimestamps();
         void CalculateCovariance();
+
         pcl::PointCloud<PointType>::Ptr transformPointCloud(pcl::PointCloud<PointType>::Ptr cloudIn, PointTypePose *transformIn);
 
+        struct errorvector{
+            int size;
+            float* x;
+            float* y;
+            float* z;
+            float* roll;
+            float* pitch;
+            float* yaw;
+        } cornerError, surfError;
 
+
+        nanoflann::KdTreeFLANN<PointType> kdtreeCornerMap;
+        nanoflann::KdTreeFLANN<PointType> kdtreeSurfMap;
+
+        void getPointErrors(const pcl::PointCloud<PointType>::Ptr &MapCloud,
+                            const pcl::PointCloud<PointType>::Ptr &Cloud,
+                            const nanoflann::KdTreeFLANN<PointType> &KdMap,
+                            errorvector &E);
+
+        float dotProduct(const int size, const float *A, const float *B);
+
+                            
 
 };
 
