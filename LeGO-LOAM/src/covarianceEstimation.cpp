@@ -119,49 +119,23 @@ pcl::PointCloud<PointType>::Ptr CovarianceEstimation::transformPointCloud(pcl::P
 
 void CovarianceEstimation::getPointErrors(const pcl::PointCloud<PointType>::Ptr &MapCloud,
                                           const pcl::PointCloud<PointType>::Ptr &Cloud, 
-                                          const nanoflann::KdTreeFLANN<PointType> &KdMap,
-                                          CovarianceEstimation::errorvector &E){
+                                          const nanoflann::KdTreeFLANN<PointType> &KdMap){
     std::vector<int> pointSearchIndMap;
     std::vector<float> pointSearchSqDisMap;
     PointType pointSel;
     int Csize = Cloud->size();
-    int Vsize = 0;
-
-    E.x = Eigen::VectorXf(0);
-    E.y = Eigen::VectorXf(0);
-    E.z = Eigen::VectorXf(0);
 
     for(int i=0; i < Csize; i++){
 
         pointSel = Cloud->points[i];
         KdMap.nearestKSearch(pointSel, 5, pointSearchIndMap,
                                         pointSearchSqDisMap);
-        if (pointSearchSqDisMap[4] < 5) {
-            float avr_x = 0, avr_y = 0, avr_z = 0;
-            for (int j=0; j < 5; j++) {
-                avr_x += MapCloud->points[pointSearchIndMap[j]].x;
-                avr_y += MapCloud->points[pointSearchIndMap[j]].y;
-                avr_z += MapCloud->points[pointSearchIndMap[j]].z;
+        if (pointSearchSqDisMap[4] < 1){
+            if (pointSearchSqDisMap[0] > hausdorff_distance) {
+                hausdorff_distance = pointSearchSqDisMap[0];
             }
-            avr_x /= 5;
-            avr_y /= 5;
-            avr_z /= 5;
-            E.x.resize(Vsize+1);
-            E.y.resize(Vsize+1);
-            E.z.resize(Vsize+1);
-            //ROS_INFO("\033[1;32m---->\033[0m # avr_x = %f, p_x = %f\n",avr_x, pointSel.x);
-            //ROS_INFO("\033[1;32m---->\033[0m # avr_y = %f, p_y = %f\n",avr_y, pointSel.y);
-            //ROS_INFO("\033[1;32m---->\033[0m # avr_z = %f, p_z = %f\n",avr_z, pointSel.z);
-            E.x[Vsize] = avr_x - pointSel.x;
-            E.y[Vsize] = avr_y - pointSel.y;
-            E.z[Vsize] = avr_z - pointSel.z;
-            if(!((E.x[Vsize]*E.x[Vsize] + E.x[Vsize]*E.y[Vsize] + E.x[Vsize]*E.z[Vsize] + E.y[Vsize]*E.y[Vsize] + E.z[Vsize]*E.y[Vsize] + E.z[Vsize]*E.z[Vsize])<10)){
-                ROS_INFO("\033[1;32m---->\033[0m # Ex = %f, Ey = %f, Ez = %f\n",E.x[Vsize], E.y[Vsize], E.z[Vsize]);
-            }
-            Vsize ++;
         }
     }
-    E.size = Vsize;
 };
 
 void CovarianceEstimation::CalculateCovariance(){
@@ -196,25 +170,31 @@ void CovarianceEstimation::CalculateCovariance(){
     int cornersize = TransformedCornerCloud->size();
     int surfsize = TransformedSurfCloud->size();
 
-    getPointErrors(CovMapCornerCloud, LastCornerCloud, kdtreeCornerMap, cornerError);
+    getPointErrors(CovMapCornerCloud, LastCornerCloud, kdtreeCornerMap);
 
-    getPointErrors(CovMapSurfCloud, LastSurfCloud, kdtreeSurfMap, surfError);
+    getPointErrors(CovMapSurfCloud, LastSurfCloud, kdtreeSurfMap);
 
+    /*
     ROS_INFO("\033[1;32m---->\033[0m # of corner points= %d, surf points= %d\n",cornerError.size,surfError.size);
     ROS_INFO("\033[1;32m---->\033[0m Corner variances: xx=%f, xy=%f, xz=%f, yy=%f, yz=%f, zz=%f\n",cornerError.x.dot(cornerError.x),cornerError.x.dot(cornerError.y),
     cornerError.x.dot(cornerError.z),cornerError.y.dot(cornerError.y),cornerError.y.dot(cornerError.z),cornerError.z.dot(cornerError.z));
     ROS_INFO("\033[1;32m---->\033[0m Surf variances: xx=%f, xy=%f, xz=%f, yy=%f, yz=%f, zz=%f\n",surfError.x.dot(surfError.x),surfError.x.dot(surfError.y),
     surfError.x.dot(surfError.z),surfError.y.dot(surfError.y),surfError.y.dot(surfError.z),surfError.z.dot(surfError.z));
+    */
+    LastOdometryWithCovariance.pose.covariance[0] = hausdorff_distance;
+    //LastOdometryWithCovariance.pose.covariance[1] = (cornerError.x.dot(cornerError.y)+surfError.x.dot(surfError.y))/(cornerError.size+surfError.size-1);
+    //LastOdometryWithCovariance.pose.covariance[2] = (cornerError.x.dot(cornerError.z)+surfError.x.dot(surfError.z))/(cornerError.size+surfError.size-1);
+    //LastOdometryWithCovariance.pose.covariance[6] = LastOdometryWithCovariance.pose.covariance[1];
+    LastOdometryWithCovariance.pose.covariance[7] = hausdorff_distance;
+    //LastOdometryWithCovariance.pose.covariance[8] = (cornerError.y.dot(cornerError.z)+surfError.y.dot(surfError.z))/(cornerError.size+surfError.size-1);
+    //LastOdometryWithCovariance.pose.covariance[12] = LastOdometryWithCovariance.pose.covariance[2];
+    //LastOdometryWithCovariance.pose.covariance[13] = LastOdometryWithCovariance.pose.covariance[8];
+    LastOdometryWithCovariance.pose.covariance[14] = hausdorff_distance;
+    LastOdometryWithCovariance.pose.covariance[21] = hausdorff_distance;
+    LastOdometryWithCovariance.pose.covariance[28] = hausdorff_distance;
+    LastOdometryWithCovariance.pose.covariance[35] = hausdorff_distance;
 
-    LastOdometryWithCovariance.pose.covariance[0] = (cornerError.x.dot(cornerError.x)+surfError.x.dot(surfError.x))/(cornerError.size+surfError.size-1);
-    LastOdometryWithCovariance.pose.covariance[1] = (cornerError.x.dot(cornerError.y)+surfError.x.dot(surfError.y))/(cornerError.size+surfError.size-1);
-    LastOdometryWithCovariance.pose.covariance[2] = (cornerError.x.dot(cornerError.z)+surfError.x.dot(surfError.z))/(cornerError.size+surfError.size-1);
-    LastOdometryWithCovariance.pose.covariance[6] = LastOdometryWithCovariance.pose.covariance[1];
-    LastOdometryWithCovariance.pose.covariance[7] = (cornerError.y.dot(cornerError.y)+surfError.y.dot(surfError.z))/(cornerError.size+surfError.size-1);
-    LastOdometryWithCovariance.pose.covariance[8] = (cornerError.y.dot(cornerError.z)+surfError.y.dot(surfError.z))/(cornerError.size+surfError.size-1);
-    LastOdometryWithCovariance.pose.covariance[12] = LastOdometryWithCovariance.pose.covariance[2];
-    LastOdometryWithCovariance.pose.covariance[13] = LastOdometryWithCovariance.pose.covariance[8];
-    LastOdometryWithCovariance.pose.covariance[14] = (cornerError.z.dot(cornerError.z)+surfError.z.dot(surfError.z))/(cornerError.size+surfError.size-1);
+    hausdorff_distance = 0;
                                                     
     pubOdometryWithCovariance.publish(LastOdometryWithCovariance);
     ROS_INFO("\033[1;32m---->\033[0m Covariance calculated.\n");

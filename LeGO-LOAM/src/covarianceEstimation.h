@@ -70,23 +70,14 @@ class CovarianceEstimation{
 
         pcl::PointCloud<PointType>::Ptr transformPointCloud(pcl::PointCloud<PointType>::Ptr cloudIn, PointTypePose *transformIn);
 
-        struct errorvector{
-            int size = 0;
-            Eigen::VectorXf x = Eigen::VectorXf(0);
-            Eigen::VectorXf y = Eigen::VectorXf(0);
-            Eigen::VectorXf z = Eigen::VectorXf(0);
-            Eigen::VectorXf roll = Eigen::VectorXf(0);
-            Eigen::VectorXf pitch = Eigen::VectorXf(0);
-            Eigen::VectorXf yaw = Eigen::VectorXf(0);
-        } cornerError, surfError;
+        float hausdorff_distance = 0;
 
         nanoflann::KdTreeFLANN<PointType> kdtreeCornerMap;
         nanoflann::KdTreeFLANN<PointType> kdtreeSurfMap;
 
         void getPointErrors(const pcl::PointCloud<PointType>::Ptr &MapCloud,
                             const pcl::PointCloud<PointType>::Ptr &Cloud,
-                            const nanoflann::KdTreeFLANN<PointType> &KdMap,
-                            errorvector &E);
+                            const nanoflann::KdTreeFLANN<PointType> &KdMap);
 
 };
 
