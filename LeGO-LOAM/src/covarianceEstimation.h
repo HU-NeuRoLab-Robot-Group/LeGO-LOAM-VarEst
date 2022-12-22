@@ -3,6 +3,7 @@
 
 #include "lego_loam/utility.h"
 #include "lego_loam/nanoflann_pcl.h"
+#include <eigen3/Eigen/Dense>
 
 class CovarianceEstimation{
 
@@ -70,15 +71,14 @@ class CovarianceEstimation{
         pcl::PointCloud<PointType>::Ptr transformPointCloud(pcl::PointCloud<PointType>::Ptr cloudIn, PointTypePose *transformIn);
 
         struct errorvector{
-            int size;
-            float* x;
-            float* y;
-            float* z;
-            float* roll;
-            float* pitch;
-            float* yaw;
+            int size = 0;
+            Eigen::VectorXf x = Eigen::VectorXf(0);
+            Eigen::VectorXf y = Eigen::VectorXf(0);
+            Eigen::VectorXf z = Eigen::VectorXf(0);
+            Eigen::VectorXf roll = Eigen::VectorXf(0);
+            Eigen::VectorXf pitch = Eigen::VectorXf(0);
+            Eigen::VectorXf yaw = Eigen::VectorXf(0);
         } cornerError, surfError;
-
 
         nanoflann::KdTreeFLANN<PointType> kdtreeCornerMap;
         nanoflann::KdTreeFLANN<PointType> kdtreeSurfMap;
@@ -87,10 +87,6 @@ class CovarianceEstimation{
                             const pcl::PointCloud<PointType>::Ptr &Cloud,
                             const nanoflann::KdTreeFLANN<PointType> &KdMap,
                             errorvector &E);
-
-        float dotProduct(const int size, const float *A, const float *B);
-
-                            
 
 };
 

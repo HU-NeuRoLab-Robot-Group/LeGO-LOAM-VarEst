@@ -124,38 +124,44 @@ void CovarianceEstimation::getPointErrors(const pcl::PointCloud<PointType>::Ptr 
     std::vector<int> pointSearchIndMap;
     std::vector<float> pointSearchSqDisMap;
     PointType pointSel;
+    int Csize = Cloud->size();
+    int Vsize = 0;
 
-    float avr_x, avr_y, avr_z;
+    E.x = Eigen::VectorXf(0);
+    E.y = Eigen::VectorXf(0);
+    E.z = Eigen::VectorXf(0);
 
-    for(int i=0; i < E.size; i++){
+    for(int i=0; i < Csize; i++){
 
         pointSel = Cloud->points[i];
         KdMap.nearestKSearch(pointSel, 5, pointSearchIndMap,
                                         pointSearchSqDisMap);
-        if (pointSearchSqDisMap[4] < 5.0) {
-            for (int j = 0; j < 5; j++) {
-                avr_x = MapCloud->points[pointSearchIndMap[j]].x;
-                avr_y = MapCloud->points[pointSearchIndMap[j]].y;
-                avr_z = MapCloud->points[pointSearchIndMap[j]].z;
+        if (pointSearchSqDisMap[4] < 5) {
+            float avr_x = 0, avr_y = 0, avr_z = 0;
+            for (int j=0; j < 5; j++) {
+                avr_x += MapCloud->points[pointSearchIndMap[j]].x;
+                avr_y += MapCloud->points[pointSearchIndMap[j]].y;
+                avr_z += MapCloud->points[pointSearchIndMap[j]].z;
             }
             avr_x /= 5;
             avr_y /= 5;
             avr_z /= 5;
-            E.x[i] = pointSel.x - avr_x;
-            E.y[i] = pointSel.y - avr_y;
-            E.z[i] = pointSel.z - avr_z;
+            E.x.resize(Vsize+1);
+            E.y.resize(Vsize+1);
+            E.z.resize(Vsize+1);
+            //ROS_INFO("\033[1;32m---->\033[0m # avr_x = %f, p_x = %f\n",avr_x, pointSel.x);
+            //ROS_INFO("\033[1;32m---->\033[0m # avr_y = %f, p_y = %f\n",avr_y, pointSel.y);
+            //ROS_INFO("\033[1;32m---->\033[0m # avr_z = %f, p_z = %f\n",avr_z, pointSel.z);
+            E.x[Vsize] = avr_x - pointSel.x;
+            E.y[Vsize] = avr_y - pointSel.y;
+            E.z[Vsize] = avr_z - pointSel.z;
+            if(!((E.x[Vsize]*E.x[Vsize] + E.x[Vsize]*E.y[Vsize] + E.x[Vsize]*E.z[Vsize] + E.y[Vsize]*E.y[Vsize] + E.z[Vsize]*E.y[Vsize] + E.z[Vsize]*E.z[Vsize])<10)){
+                ROS_INFO("\033[1;32m---->\033[0m # Ex = %f, Ey = %f, Ez = %f\n",E.x[Vsize], E.y[Vsize], E.z[Vsize]);
+            }
+            Vsize ++;
         }
     }
-};
-
-
-float CovarianceEstimation::dotProduct(const int size, const float *A, const float *B){
-    float sum = 0;
-
-    for (int i=0; i < size; i++){
-        sum += A[i] * B[i];
-    }
-    return sum;
+    E.size = Vsize;
 };
 
 void CovarianceEstimation::CalculateCovariance(){
@@ -167,7 +173,6 @@ void CovarianceEstimation::CalculateCovariance(){
     float transform[6];
 
     OdometryToTransform(LastOdometry, transform);
-    ROS_INFO("\033[1;32m---->\033[0m Odometry Transform.\n");
 
     PointTypePose transformIn;
     
@@ -188,74 +193,31 @@ void CovarianceEstimation::CalculateCovariance(){
     if(pubTestCloudCorner.getNumSubscribers() != 0) pubTestCloudCorner.publish(TransformedCornerCloud);
     if(pubTestCloudSurf.getNumSubscribers() != 0) pubTestCloudSurf.publish(TransformedSurfCloud);
 
-
-    ROS_INFO("\033[1;32m---->\033[0m Transform Cloud.\n");
-
     int cornersize = TransformedCornerCloud->size();
     int surfsize = TransformedSurfCloud->size();
 
-    cornerError.size = cornersize;
-    cornerError.x = new float(cornersize);
-    cornerError.y = new float(cornersize);
-    cornerError.z = new float(cornersize);
-    cornerError.roll = new float(cornersize);
-    cornerError.pitch = new float(cornersize);
-    cornerError.yaw = new float(cornersize);
-
     getPointErrors(CovMapCornerCloud, LastCornerCloud, kdtreeCornerMap, cornerError);
-
-    surfError.size = surfsize;
-    surfError.x = new float(cornersize);
-    surfError.y = new float(cornersize);
-    surfError.z = new float(cornersize);
-    surfError.roll = new float(cornersize);
-    surfError.pitch = new float(cornersize);
-    surfError.yaw = new float(cornersize);
 
     getPointErrors(CovMapSurfCloud, LastSurfCloud, kdtreeSurfMap, surfError);
 
+    ROS_INFO("\033[1;32m---->\033[0m # of corner points= %d, surf points= %d\n",cornerError.size,surfError.size);
+    ROS_INFO("\033[1;32m---->\033[0m Corner variances: xx=%f, xy=%f, xz=%f, yy=%f, yz=%f, zz=%f\n",cornerError.x.dot(cornerError.x),cornerError.x.dot(cornerError.y),
+    cornerError.x.dot(cornerError.z),cornerError.y.dot(cornerError.y),cornerError.y.dot(cornerError.z),cornerError.z.dot(cornerError.z));
+    ROS_INFO("\033[1;32m---->\033[0m Surf variances: xx=%f, xy=%f, xz=%f, yy=%f, yz=%f, zz=%f\n",surfError.x.dot(surfError.x),surfError.x.dot(surfError.y),
+    surfError.x.dot(surfError.z),surfError.y.dot(surfError.y),surfError.y.dot(surfError.z),surfError.z.dot(surfError.z));
 
-    ROS_INFO("\033[1;32m---->\033[0m Point Error.\n");
-
-    LastOdometryWithCovariance.pose.covariance[0] = (dotProduct(cornerError.size, cornerError.x,cornerError.x) + 
-                                                    dotProduct(surfError.size, surfError.x,surfError.x))
-                                                    /(cornerError.size+surfError.size);
-    LastOdometryWithCovariance.pose.covariance[1] =  (dotProduct(cornerError.size, cornerError.x,cornerError.y) + 
-                                                    dotProduct(surfError.size, surfError.x,surfError.y))
-                                                    /(cornerError.size+surfError.size);
-    LastOdometryWithCovariance.pose.covariance[2] =  (dotProduct(cornerError.size, cornerError.x,cornerError.z) + 
-                                                    dotProduct(surfError.size, surfError.x,surfError.z))
-                                                    /(cornerError.size+surfError.size);
-    LastOdometryWithCovariance.pose.covariance[6] =  LastOdometryWithCovariance.pose.covariance[1];
-    LastOdometryWithCovariance.pose.covariance[7] =  (dotProduct(cornerError.size, cornerError.y,cornerError.y) + 
-                                                    dotProduct(surfError.size, surfError.y,surfError.y))
-                                                    /(cornerError.size+surfError.size);
-    LastOdometryWithCovariance.pose.covariance[8] =  (dotProduct(cornerError.size, cornerError.y,cornerError.z) + 
-                                                    dotProduct(surfError.size, surfError.y,surfError.z))
-                                                    /(cornerError.size+surfError.size);
+    LastOdometryWithCovariance.pose.covariance[0] = (cornerError.x.dot(cornerError.x)+surfError.x.dot(surfError.x))/(cornerError.size+surfError.size-1);
+    LastOdometryWithCovariance.pose.covariance[1] = (cornerError.x.dot(cornerError.y)+surfError.x.dot(surfError.y))/(cornerError.size+surfError.size-1);
+    LastOdometryWithCovariance.pose.covariance[2] = (cornerError.x.dot(cornerError.z)+surfError.x.dot(surfError.z))/(cornerError.size+surfError.size-1);
+    LastOdometryWithCovariance.pose.covariance[6] = LastOdometryWithCovariance.pose.covariance[1];
+    LastOdometryWithCovariance.pose.covariance[7] = (cornerError.y.dot(cornerError.y)+surfError.y.dot(surfError.z))/(cornerError.size+surfError.size-1);
+    LastOdometryWithCovariance.pose.covariance[8] = (cornerError.y.dot(cornerError.z)+surfError.y.dot(surfError.z))/(cornerError.size+surfError.size-1);
     LastOdometryWithCovariance.pose.covariance[12] = LastOdometryWithCovariance.pose.covariance[2];
     LastOdometryWithCovariance.pose.covariance[13] = LastOdometryWithCovariance.pose.covariance[8];
-    LastOdometryWithCovariance.pose.covariance[14] =  (dotProduct(cornerError.size, cornerError.z,cornerError.z) + 
-                                                    dotProduct(surfError.size, surfError.z,surfError.z))
-                                                    /(cornerError.size+surfError.size);
-
-    ROS_INFO("\033[1;32m---->\033[0m Dot product.\n");
-
+    LastOdometryWithCovariance.pose.covariance[14] = (cornerError.z.dot(cornerError.z)+surfError.z.dot(surfError.z))/(cornerError.size+surfError.size-1);
+                                                    
     pubOdometryWithCovariance.publish(LastOdometryWithCovariance);
     ROS_INFO("\033[1;32m---->\033[0m Covariance calculated.\n");
-
-    delete cornerError.x;
-    delete cornerError.y;
-    delete cornerError.z;
-    delete cornerError.roll;
-    delete cornerError.pitch;
-    delete cornerError.yaw;
-    delete surfError.x;
-    delete surfError.y;
-    delete surfError.z;
-    delete surfError.roll;
-    delete surfError.pitch;
-    delete surfError.yaw;
 
 };
 
@@ -263,11 +225,15 @@ void CovarianceEstimation::CovMapCornerCloudHandler(const sensor_msgs::PointClou
 
     pcl::fromROSMsg(*message,*CovMapCornerCloud);
 
+    kdtreeCornerMap.setInputCloud(CovMapCornerCloud);
+
 };
 
 void CovarianceEstimation::CovMapSurfCloudHandler(const sensor_msgs::PointCloud2ConstPtr& message){
 
     pcl::fromROSMsg(*message,*CovMapSurfCloud);
+
+    kdtreeSurfMap.setInputCloud(CovMapSurfCloud);
 
 };
 
@@ -282,8 +248,6 @@ void CovarianceEstimation::LastCornerCloudHandler(const sensor_msgs::PointCloud2
     T_LastCornerCloud.sec = message->header.stamp.sec;
     T_LastCornerCloud.nsec = message->header.stamp.nsec;
 
-    kdtreeCornerMap.setInputCloud(LastCornerCloud);
-
 };
 
 void CovarianceEstimation::LastSurfCloudHandler(const sensor_msgs::PointCloud2ConstPtr& message){
@@ -296,8 +260,6 @@ void CovarianceEstimation::LastSurfCloudHandler(const sensor_msgs::PointCloud2Co
 
     T_LastSurfCloud.sec = message->header.stamp.sec;
     T_LastSurfCloud.nsec = message->header.stamp.nsec;
-
-    kdtreeSurfMap.setInputCloud(LastSurfCloud);
 
 };
 
