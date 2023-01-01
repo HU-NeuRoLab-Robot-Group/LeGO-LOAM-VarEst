@@ -10,6 +10,8 @@
 
 #include "cloud_msgs/cloud_info.h"
 
+#include <opencv/cv.h>
+
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl_ros/point_cloud.h>
@@ -17,6 +19,7 @@
 #include <pcl/range_image/range_image.h>
 #include <pcl/filters/filter.h>
 #include <pcl/filters/voxel_grid.h>
+#include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/common/common.h>
 #include <pcl/registration/icp.h>
 
@@ -41,11 +44,102 @@
 #include <thread>
 #include <mutex>
 
+//#define PI 3.14159265
+
+using namespace std;
+
 typedef pcl::PointXYZI  PointType;
 
 typedef Eigen::Vector3f Vector3;
 
+// static const string pointCloudTopic = "/velodyne_points";
+// static const string pointCloudTopic = "/kitti_scan";
+static const string pointCloudTopic = "/os1_points";
+static const string imuTopic = "/imu/data";
+
+// Save pcd
+static const string fileDirectory = "/tmp/";
+
+// Using velodyne cloud "ring" channel for image projection (other lidar may have different name for this channel, change "PointXYZIR" below)
+static const bool useCloudRing = false; // if true, ang_res_y and ang_bottom are not used
+
+// VLP-16
+// static const int N_SCAN = 16;
+// static const int Horizon_SCAN = 1800;
+// static const float ang_res_x = 0.2;
+// static const float ang_res_y = 2.0;
+// static const float ang_bottom = 15.0+0.1;
+// static const int groundScanInd = 7;
+
+// HDL-32E
+// static const int N_SCAN = 32;
+// static const int Horizon_SCAN = 1800;
+// static const float ang_res_x = 360.0/float(Horizon_SCAN);
+// static const float ang_res_y = 41.33/float(N_SCAN-1);
+// static const float ang_bottom = 30.67;
+// static const int groundScanInd = 20;
+
+// VLS-128
+// static const int N_SCAN = 128;
+// static const int Horizon_SCAN = 1800;
+// static const float ang_res_x = 0.2;
+// static const float ang_res_y = 0.3;
+// static const float ang_bottom = 25.0;
+// static const int groundScanInd = 10;
+
+// Ouster users may need to uncomment line 159 in imageProjection.cpp
+// Usage of Ouster imu data is not fully supported yet (LeGO-LOAM needs 9-DOF IMU), please just publish point cloud data
+// Ouster OS1-16
+// static const int N_SCAN = 16;
+// static const int Horizon_SCAN = 1024;
+// static const float ang_res_x = 360.0/float(Horizon_SCAN);
+// static const float ang_res_y = 33.2/float(N_SCAN-1);
+// static const float ang_bottom = 16.6+0.1;
+// static const int groundScanInd = 7;
+
+// Ouster OS1-64
+static const int N_SCAN = 64;
+static const int Horizon_SCAN = 1024;
+static const float ang_res_x = 360.0/float(Horizon_SCAN);
+static const float ang_res_y = 33.2/float(N_SCAN-1);
+static const float ang_bottom = 16.6+0.1;
+static const int groundScanInd = 15;
+
+static const bool loopClosureEnableFlag = true;
+static const double mappingProcessInterval = 0.3;
+
+static const float scanPeriod = 0.1;
+static const int systemDelay = 0;
+static const int imuQueLength = 200;
+
+static const float sensorMinimumRange = 1.0;
+static const float sensorMountAngle = 0.0;
+static const float segmentTheta = 60.0/180.0*M_PI; // decrese this value may improve accuracy
+static const int segmentValidPointNum = 5;
+static const int segmentValidLineNum = 3;
+static const float segmentAlphaX = ang_res_x / 180.0 * M_PI;
+static const float segmentAlphaY = ang_res_y / 180.0 * M_PI;
+
+
+static const int edgeFeatureNum = 2;
+static const int surfFeatureNum = 4;
+static const int sectionsTotal = 6;
+static const float edgeThreshold = 0.1;
+static const float surfThreshold = 0.1;
+static const float nearestFeatureSearchSqDist = 25;
+
 const double DEG_TO_RAD = M_PI / 180.0;
+
+// Mapping Params
+static const float surroundingKeyframeSearchRadius = 50.0; // key frame that is within n meters from current pose will be considerd for scan-to-map optimization (when loop closure disabled)
+static const int   surroundingKeyframeSearchNum = 50; // submap size (when loop closure enabled)
+
+// history key frames (history submap for loop closure)
+static const float historyKeyframeSearchRadius = 20.0; // NOT used in Scan Context-based loop detector / default 7.0; key frame that is within n meters from current pose will be considerd for loop closure
+static const int   historyKeyframeSearchNum = 25; // 2n+1 number of history key frames will be fused into a submap for loop closure
+static const float historyKeyframeFitnessScore = 1.5; // default 0.3; the smaller the better alignment
+
+static const float globalMapVisualizationSearchRadius = 1500.0; // key frames with in n meters will be visualized
 
 
 struct smoothness_t{ 
@@ -59,8 +153,26 @@ struct by_value{
     }
 };
 
+/*
+    * A point cloud type that has "ring" channel
+    */
+struct PointXYZIR
+{
+    PCL_ADD_POINT4D
+    PCL_ADD_INTENSITY;
+    uint16_t ring;
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+} EIGEN_ALIGN16;
+
+POINT_CLOUD_REGISTER_POINT_STRUCT (PointXYZIR,  
+                                   (float, x, x) (float, y, y)
+                                   (float, z, z) (float, intensity, intensity)
+                                   (uint16_t, ring, ring)
+)
+
 struct ProjectionOut
 {
+  pcl::PointCloud<PointType>::Ptr cloud_raw;
   pcl::PointCloud<PointType>::Ptr segmented_cloud;
   pcl::PointCloud<PointType>::Ptr outlier_cloud;
   cloud_msgs::cloud_info seg_msg;

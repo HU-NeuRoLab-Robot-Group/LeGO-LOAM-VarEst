@@ -1,6 +1,7 @@
 #ifndef MAPOPTIMIZATION_H
 #define MAPOPTIMIZATION_H
 
+#include "lego_loam/Scancontext.h"
 #include "lego_loam/utility.h"
 #include "lego_loam/channel.h"
 #include "lego_loam/nanoflann_pcl.h"
@@ -35,7 +36,9 @@ inline Eigen::Affine3f pclPointToAffine3fCameraToLidar(
 class MapOptimization {
 
  public:
-  MapOptimization(ros::NodeHandle& node, Channel<AssociationOut> &input_channel);
+  MapOptimization( ros::NodeHandle& node,
+                     Channel<AssociationOut>& input_channel,
+                     Channel<ProjectionOut>& raw_channel);
 
   ~MapOptimization();
 
@@ -60,6 +63,7 @@ class MapOptimization {
   float _global_map_visualization_search_radius;
 
   Channel<AssociationOut>& _input_channel;
+  Channel<ProjectionOut>& _raw_channel;
   std::thread _run_thread;
 
   Channel<bool> _publish_global_signal;
@@ -108,6 +112,8 @@ class MapOptimization {
   pcl::PointCloud<PointType>::Ptr surroundingKeyPoses;
   pcl::PointCloud<PointType>::Ptr surroundingKeyPosesDS;
 
+  pcl::PointCloud<PointType>::Ptr laserCloudRaw; 
+  pcl::PointCloud<PointType>::Ptr laserCloudRawDS; 
   pcl::PointCloud<PointType>::Ptr
       laserCloudCornerLast;  // corner feature set from odoOptimization
   pcl::PointCloud<PointType>::Ptr
@@ -149,13 +155,19 @@ class MapOptimization {
   nanoflann::KdTreeFLANN<PointType> kdtreeSurroundingKeyPoses;
   nanoflann::KdTreeFLANN<PointType> kdtreeHistoryKeyPoses;
 
+  pcl::PointCloud<PointType>::Ptr RSlatestSurfKeyFrameCloud; // giseop, RS: radius search 
+  pcl::PointCloud<PointType>::Ptr RSnearHistorySurfKeyFrameCloud;
+  pcl::PointCloud<PointType>::Ptr RSnearHistorySurfKeyFrameCloudDS;
+
   pcl::PointCloud<PointType>::Ptr nearHistoryCornerKeyFrameCloud;
   pcl::PointCloud<PointType>::Ptr nearHistoryCornerKeyFrameCloudDS;
-  pcl::PointCloud<PointType>::Ptr nearHistorySurfKeyFrameCloud;
-  pcl::PointCloud<PointType>::Ptr nearHistorySurfKeyFrameCloudDS;
+  pcl::PointCloud<PointType>::Ptr SCnearHistorySurfKeyFrameCloud;
+  pcl::PointCloud<PointType>::Ptr SCnearHistorySurfKeyFrameCloudDS;
+
+
 
   pcl::PointCloud<PointType>::Ptr latestCornerKeyFrameCloud;
-  pcl::PointCloud<PointType>::Ptr latestSurfKeyFrameCloud;
+  pcl::PointCloud<PointType>::Ptr SClatestSurfKeyFrameCloud; // giseop, SC: scan context
   pcl::PointCloud<PointType>::Ptr latestSurfKeyFrameCloudDS;
 
   nanoflann::KdTreeFLANN<PointType> kdtreeGlobalMap;
@@ -167,6 +179,7 @@ class MapOptimization {
   std::vector<int> pointSearchInd;
   std::vector<float> pointSearchSqDis;
 
+  pcl::VoxelGrid<PointType> downSizeFilterScancontext;
   pcl::VoxelGrid<PointType> downSizeFilterCorner;
   pcl::VoxelGrid<PointType> downSizeFilterSurf;
   pcl::VoxelGrid<PointType> downSizeFilterOutlier;
@@ -221,8 +234,10 @@ class MapOptimization {
 
   bool potentialLoopFlag;
   double timeSaveFirstCurrentScanForLoopClosure;
-  int closestHistoryFrameID;
+  int RSclosestHistoryFrameID;
+  int SCclosestHistoryFrameID; // giseop 
   int latestFrameIDLoopCloure;
+  float yawDiffRad;
 
   bool aLoopIsClosed;
 
@@ -230,6 +245,9 @@ class MapOptimization {
 
   float cRoll, sRoll, cPitch, sPitch, cYaw, sYaw, tX, tY, tZ;
   float ctRoll, stRoll, ctPitch, stPitch, ctYaw, stYaw, tInX, tInY, tInZ;
+
+  // // loop detector 
+  SCManager scManager;
 
  private:
   void allocateMemory();

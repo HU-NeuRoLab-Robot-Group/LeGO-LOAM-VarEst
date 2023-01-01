@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(lego_loam_bor)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -O3 -g ")
-
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -O3 -g ")
+set(CMAKE_CXX_STANDARD 14)
 #
 
 find_package(catkin REQUIRED COMPONENTS
@@ -10,6 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   image_transport
+  cv_bridge
   rosbag_storage
 
   pcl_ros
@@ -22,8 +23,10 @@ find_package(catkin REQUIRED COMPONENTS
   cloud_msgs
 )
 
+find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(GTSAM REQUIRED QUIET)
 find_package(PCL REQUIRED QUIET)
+find_package(OpenCV REQUIRED QUIET)
 
 catkin_package(
   INCLUDE_DIRS include
@@ -35,11 +38,13 @@ include_directories(
 	include
 	${catkin_INCLUDE_DIRS}
 	${PCL_INCLUDE_DIRS}
+	${OpenCV_INCLUDE_DIRS}
 	${GTSAM_INCLUDE_DIR}
 )
 
 link_directories(
 	include
+	${OpenCV_LIBRARY_DIRS}
 	${PCL_LIBRARY_DIRS}
 	${GTSAM_LIBRARY_DIRS}
 )
@@ -49,6 +54,7 @@ add_executable(lego_loam_bor
     src/featureAssociation.cpp
     src/mapOptmization.cpp
     src/transformFusion.cpp
+    src/Scancontext.cpp
     src/main.cpp)
 
 add_executable(covarianceEstimation
@@ -56,7 +62,12 @@ add_executable(covarianceEstimation
 )
 
 add_dependencies(lego_loam_bor ${catkin_EXPORTED_TARGETS} cloud_msgs_gencpp)
-target_link_libraries(lego_loam_bor ${catkin_LIBRARIES} ${PCL_LIBRARIES} gtsam)
+target_link_libraries(lego_loam_bor 
+	${catkin_LIBRARIES} 
+	${PCL_LIBRARIES} 
+	${OpenCV_LIBRARIES} 
+	gtsam 
+  Eigen3::Eigen)
 
 add_dependencies(covarianceEstimation ${catkin_EXPORTED_TARGETS} cloud_msgs_gencpp)
 target_link_libraries(covarianceEstimation ${catkin_LIBRARIES} ${PCL_LIBRARIES} gtsam)

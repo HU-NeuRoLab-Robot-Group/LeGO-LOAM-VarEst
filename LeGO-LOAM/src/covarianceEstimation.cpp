@@ -197,7 +197,7 @@ void CovarianceEstimation::CalculateCovariance(){
     hausdorff_distance = 0;
                                                     
     pubOdometryWithCovariance.publish(LastOdometryWithCovariance);
-    ROS_INFO("\033[1;32m---->\033[0m Covariance calculated.\n");
+    //ROS_INFO("\033[1;32m---->\033[0m Covariance calculated.\n");
 
 };
 
