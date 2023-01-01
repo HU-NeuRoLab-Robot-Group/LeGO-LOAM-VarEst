@@ -135,11 +135,11 @@ void FeatureAssociation::initializationValue() {
   laserCloudOri.reset(new pcl::PointCloud<PointType>());
   coeffSel.reset(new pcl::PointCloud<PointType>());
 
-  laserOdometry.header.frame_id = "/camera_init";
-  laserOdometry.child_frame_id = "/laser_odom";
+  laserOdometry.header.frame_id = "camera_init";
+  laserOdometry.child_frame_id = "laser_odom";
 
-  laserOdometryTrans.frame_id_ = "/camera_init";
-  laserOdometryTrans.child_frame_id_ = "/laser_odom";
+  laserOdometryTrans.frame_id_ = "camera_init";
+  laserOdometryTrans.child_frame_id_ = "laser_odom";
 
   isDegenerate = false;
 
@@ -1102,13 +1102,13 @@ void FeatureAssociation::checkSystemInitialization() {
   sensor_msgs::PointCloud2 laserCloudCornerLast2;
   pcl::toROSMsg(*laserCloudCornerLast, laserCloudCornerLast2);
   laserCloudCornerLast2.header.stamp = cloudHeader.stamp;
-  laserCloudCornerLast2.header.frame_id = "/camera";
+  laserCloudCornerLast2.header.frame_id = "camera";
   _pub_cloud_corner_last.publish(laserCloudCornerLast2);
 
   sensor_msgs::PointCloud2 laserCloudSurfLast2;
   pcl::toROSMsg(*laserCloudSurfLast, laserCloudSurfLast2);
   laserCloudSurfLast2.header.stamp = cloudHeader.stamp;
-  laserCloudSurfLast2.header.frame_id = "/camera";
+  laserCloudSurfLast2.header.frame_id = "camera";
   _pub_cloud_surf_last.publish(laserCloudSurfLast2);
 
   systemInitedLM = true;
@@ -1208,7 +1208,7 @@ void FeatureAssociation::publishCloud() {
     if (pub.getNumSubscribers() != 0) {
       pcl::toROSMsg(*cloud, laserCloudOutMsg);
       laserCloudOutMsg.header.stamp = cloudHeader.stamp;
-      laserCloudOutMsg.header.frame_id = "/camera";
+      laserCloudOutMsg.header.frame_id = "camera";
       pub.publish(laserCloudOutMsg);
     }
   };
@@ -1261,7 +1261,7 @@ void FeatureAssociation::publishCloudsLast() {
       if (pub.getNumSubscribers() != 0) {
         pcl::toROSMsg(*cloud, cloudTemp);
         cloudTemp.header.stamp = cloudHeader.stamp;
-        cloudTemp.header.frame_id = "/camera";
+        cloudTemp.header.frame_id = "camera";
         pub.publish(cloudTemp);
       }
     };
