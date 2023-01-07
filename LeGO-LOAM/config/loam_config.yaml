@@ -1,12 +1,22 @@
 lego_loam:
 
     # VLP-16
+    #laser:
+    #    num_vertical_scans: 16
+    #    num_horizontal_scans: 1800
+    #    ground_scan_index: 7
+    #    vertical_angle_bottom: -15          # degrees
+    #    vertical_angle_top: 15              # degrees
+    #    sensor_mount_angle: 0               # degrees
+    #    scan_period: 0.1                    # seconds
+
+    # Ouster OS1-64
     laser:
-        num_vertical_scans: 16
-        num_horizontal_scans: 1800
+        num_vertical_scans: 64
+        num_horizontal_scans: 1024
         ground_scan_index: 7
-        vertical_angle_bottom: -15          # degrees
-        vertical_angle_top: 15              # degrees
+        vertical_angle_bottom: -16.6        # degrees
+        vertical_angle_top: 16.6            # degrees
         sensor_mount_angle: 0               # degrees
         scan_period: 0.1                    # seconds
 
@@ -21,7 +31,7 @@ lego_loam:
         nearest_feature_search_distance: 5
 
     mapping:
-        enable_loop_closure: false
+        enable_loop_closure: true
         mapping_frequency_divider: 5
 
         surrounding_keyframe_search_radius: 50.0   # key frame that is within n meters from current pose will be
