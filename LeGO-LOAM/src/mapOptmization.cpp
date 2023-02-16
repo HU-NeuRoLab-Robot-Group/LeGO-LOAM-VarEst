@@ -70,6 +70,9 @@ class mapOptimization {
   ros::Publisher pubRecentKeyFrames;
   ros::Publisher pubRegisteredCloud;
 
+  ros::Publisher pubCovMapCornerCloud;
+  ros::Publisher pubCovMapSurfCloud;
+
   ros::Subscriber subLaserCloudCornerLast;
   ros::Subscriber subLaserCloudSurfLast;
   ros::Subscriber subOutlierCloudLast;
@@ -125,6 +128,11 @@ class mapOptimization {
       laserCloudSurfTotalLastDS;  // downsampled corner featuer set from
                                   // odoOptimization
 
+  pcl::PointCloud<PointType>::Ptr
+      CovMapCornerCloudDS;  // downsampled set for cov_est corner message
+  pcl::PointCloud<PointType>::Ptr
+      CovMapSurfCloudDS;  // downsampled set for cov_est surf message
+
   pcl::PointCloud<PointType>::Ptr laserCloudOri;
   pcl::PointCloud<PointType>::Ptr coeffSel;
 
@@ -169,6 +177,12 @@ class mapOptimization {
       downSizeFilterGlobalMapKeyPoses;  // for global map visualization
   pcl::VoxelGrid<PointType>
       downSizeFilterGlobalMapKeyFrames;  // for global map visualization
+
+  pcl::VoxelGrid<PointType>
+      downSizeCovMapCornerCloud;  // for downsize cov estimation corner map
+                                  // cloud
+  pcl::VoxelGrid<PointType>
+      downSizeCovMapSurfCloud;  // for downsize cov estimation surf map cloud
 
   double timeLaserCloudCornerLast;
   double timeLaserCloudSurfLast;
@@ -226,6 +240,8 @@ class mapOptimization {
 
   bool aLoopIsClosed;
 
+  bool CovMapUpdated;
+
   float cRoll, sRoll, cPitch, sPitch, cYaw, sYaw, tX, tY, tZ;
   float ctRoll, stRoll, ctPitch, stPitch, ctYaw, stYaw, tInX, tInY, tInZ;
 
@@ -265,6 +281,11 @@ class mapOptimization {
     pubRegisteredCloud =
         nh.advertise<sensor_msgs::PointCloud2>("/registered_cloud", 2);
 
+    pubCovMapCornerCloud =
+        nh.advertise<sensor_msgs::PointCloud2>("/cov_map_corner_cloud", 2);
+    pubCovMapSurfCloud =
+        nh.advertise<sensor_msgs::PointCloud2>("/cov_map_surf_cloud", 2);
+
     downSizeFilterCorner.setLeafSize(0.2, 0.2, 0.2);
     downSizeFilterSurf.setLeafSize(0.4, 0.4, 0.4);
     downSizeFilterOutlier.setLeafSize(0.4, 0.4, 0.4);
@@ -279,6 +300,10 @@ class mapOptimization {
         1.0, 1.0, 1.0);  // for global map visualization
     downSizeFilterGlobalMapKeyFrames.setLeafSize(
         0.4, 0.4, 0.4);  // for global map visualization
+
+    // for covariance estimation map
+    downSizeCovMapCornerCloud.setLeafSize(0.2, 0.2, 0.2);
+    downSizeCovMapSurfCloud.setLeafSize(0.4, 0.4, 0.4);
 
     odomAftMapped.header.frame_id = "/camera_init";
     odomAftMapped.child_frame_id = "/aft_mapped";
@@ -331,6 +356,9 @@ class mapOptimization {
     laserCloudSurfFromMap.reset(new pcl::PointCloud<PointType>());
     laserCloudCornerFromMapDS.reset(new pcl::PointCloud<PointType>());
     laserCloudSurfFromMapDS.reset(new pcl::PointCloud<PointType>());
+
+    CovMapCornerCloudDS.reset(new pcl::PointCloud<PointType>());
+    CovMapSurfCloudDS.reset(new pcl::PointCloud<PointType>());
 
     kdtreeCornerFromMap.reset(new pcl::KdTreeFLANN<PointType>());
     kdtreeSurfFromMap.reset(new pcl::KdTreeFLANN<PointType>());
@@ -1680,6 +1708,15 @@ class mapOptimization {
     cornerCloudKeyFrames.push_back(thisCornerKeyFrame);
     surfCloudKeyFrames.push_back(thisSurfKeyFrame);
     outlierCloudKeyFrames.push_back(thisOutlierKeyFrame);
+
+    *laserCloudCornerFromMap +=
+        *transformPointCloud(laserCloudCornerLastDS, &cloudKeyPoses6D->back());
+    *laserCloudSurfFromMap +=
+        *transformPointCloud(laserCloudSurfLastDS, &cloudKeyPoses6D->back());
+    *laserCloudSurfFromMap +=
+        *transformPointCloud(laserCloudOutlierLastDS, &cloudKeyPoses6D->back());
+
+    CovMapUpdated = 1;
   }
 
   void correctPoses() {
@@ -1713,6 +1750,33 @@ class mapOptimization {
   }
 
   void clearCloud() {
+    if (CovMapUpdated) {
+      CovMapCornerCloudDS->clear();
+      downSizeCovMapCornerCloud.setInputCloud(laserCloudCornerFromMap);
+      downSizeCovMapCornerCloud.filter(*CovMapCornerCloudDS);
+      if (pubCovMapCornerCloud.getNumSubscribers() != 0) {
+        sensor_msgs::PointCloud2 cloudMsgcornerTemp;
+        pcl::toROSMsg(*CovMapCornerCloudDS, cloudMsgcornerTemp);
+        cloudMsgcornerTemp.header.stamp =
+            ros::Time().fromSec(timeLaserOdometry);
+        cloudMsgcornerTemp.header.frame_id = "/camera_init";
+        pubCovMapCornerCloud.publish(cloudMsgcornerTemp);
+      }
+      // printf ("corner size: %lu", CovMapCornerCloudDS->points.size());
+
+      CovMapSurfCloudDS->clear();
+      downSizeCovMapSurfCloud.setInputCloud(laserCloudSurfFromMap);
+      downSizeCovMapSurfCloud.filter(*CovMapSurfCloudDS);
+      if (pubCovMapSurfCloud.getNumSubscribers() != 0) {
+        sensor_msgs::PointCloud2 cloudMsgsurfTemp;
+        pcl::toROSMsg(*CovMapSurfCloudDS, cloudMsgsurfTemp);
+        cloudMsgsurfTemp.header.stamp = ros::Time().fromSec(timeLaserOdometry);
+        cloudMsgsurfTemp.header.frame_id = "/camera_init";
+        pubCovMapSurfCloud.publish(cloudMsgsurfTemp);
+      }
+      // printf ("surf size: %lu", CovMapSurfCloudDS->points.size());
+    }
+
     laserCloudCornerFromMap->clear();
     laserCloudSurfFromMap->clear();
     laserCloudCornerFromMapDS->clear();
