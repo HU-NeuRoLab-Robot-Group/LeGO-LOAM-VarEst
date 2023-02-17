@@ -325,7 +325,7 @@ class FeatureAssociation {
       imuAngularRotationZ[i] = 0;
     }
 
-    skipFrameNum = 1;
+    skipFrameNum = 0;  // set cloud publish rate to odom publish rate
 
     for (int i = 0; i < 6; ++i) {
       transformCur[i] = 0;
@@ -352,11 +352,11 @@ class FeatureAssociation {
     kdtreeCornerLast.reset(new pcl::KdTreeFLANN<PointType>());
     kdtreeSurfLast.reset(new pcl::KdTreeFLANN<PointType>());
 
-    laserOdometry.header.frame_id = "/camera_init";
-    laserOdometry.child_frame_id = "/laser_odom";
+    laserOdometry.header.frame_id = "camera_init";
+    laserOdometry.child_frame_id = "laser_odom";
 
-    laserOdometryTrans.frame_id_ = "/camera_init";
-    laserOdometryTrans.child_frame_id_ = "/laser_odom";
+    laserOdometryTrans.frame_id_ = "camera_init";
+    laserOdometryTrans.child_frame_id_ = "laser_odom";
 
     isDegenerate = false;
     matP = cv::Mat(6, 6, CV_32F, cv::Scalar::all(0));
@@ -880,28 +880,28 @@ class FeatureAssociation {
     if (pubCornerPointsSharp.getNumSubscribers() != 0) {
       pcl::toROSMsg(*cornerPointsSharp, laserCloudOutMsg);
       laserCloudOutMsg.header.stamp = cloudHeader.stamp;
-      laserCloudOutMsg.header.frame_id = "/camera";
+      laserCloudOutMsg.header.frame_id = "camera";
       pubCornerPointsSharp.publish(laserCloudOutMsg);
     }
 
     if (pubCornerPointsLessSharp.getNumSubscribers() != 0) {
       pcl::toROSMsg(*cornerPointsLessSharp, laserCloudOutMsg);
       laserCloudOutMsg.header.stamp = cloudHeader.stamp;
-      laserCloudOutMsg.header.frame_id = "/camera";
+      laserCloudOutMsg.header.frame_id = "camera";
       pubCornerPointsLessSharp.publish(laserCloudOutMsg);
     }
 
     if (pubSurfPointsFlat.getNumSubscribers() != 0) {
       pcl::toROSMsg(*surfPointsFlat, laserCloudOutMsg);
       laserCloudOutMsg.header.stamp = cloudHeader.stamp;
-      laserCloudOutMsg.header.frame_id = "/camera";
+      laserCloudOutMsg.header.frame_id = "camera";
       pubSurfPointsFlat.publish(laserCloudOutMsg);
     }
 
     if (pubSurfPointsLessFlat.getNumSubscribers() != 0) {
       pcl::toROSMsg(*surfPointsLessFlat, laserCloudOutMsg);
       laserCloudOutMsg.header.stamp = cloudHeader.stamp;
-      laserCloudOutMsg.header.frame_id = "/camera";
+      laserCloudOutMsg.header.frame_id = "camera";
       pubSurfPointsLessFlat.publish(laserCloudOutMsg);
     }
   }
@@ -1747,13 +1747,13 @@ class FeatureAssociation {
     sensor_msgs::PointCloud2 laserCloudCornerLast2;
     pcl::toROSMsg(*laserCloudCornerLast, laserCloudCornerLast2);
     laserCloudCornerLast2.header.stamp = cloudHeader.stamp;
-    laserCloudCornerLast2.header.frame_id = "/camera";
+    laserCloudCornerLast2.header.frame_id = "camera";
     pubLaserCloudCornerLast.publish(laserCloudCornerLast2);
 
     sensor_msgs::PointCloud2 laserCloudSurfLast2;
     pcl::toROSMsg(*laserCloudSurfLast, laserCloudSurfLast2);
     laserCloudSurfLast2.header.stamp = cloudHeader.stamp;
-    laserCloudSurfLast2.header.frame_id = "/camera";
+    laserCloudSurfLast2.header.frame_id = "camera";
     pubLaserCloudSurfLast.publish(laserCloudSurfLast2);
 
     transformSum[0] += imuPitchStart;
@@ -1919,19 +1919,19 @@ class FeatureAssociation {
       sensor_msgs::PointCloud2 outlierCloudLast2;
       pcl::toROSMsg(*outlierCloud, outlierCloudLast2);
       outlierCloudLast2.header.stamp = cloudHeader.stamp;
-      outlierCloudLast2.header.frame_id = "/camera";
+      outlierCloudLast2.header.frame_id = "camera";
       pubOutlierCloudLast.publish(outlierCloudLast2);
 
       sensor_msgs::PointCloud2 laserCloudCornerLast2;
       pcl::toROSMsg(*laserCloudCornerLast, laserCloudCornerLast2);
       laserCloudCornerLast2.header.stamp = cloudHeader.stamp;
-      laserCloudCornerLast2.header.frame_id = "/camera";
+      laserCloudCornerLast2.header.frame_id = "camera";
       pubLaserCloudCornerLast.publish(laserCloudCornerLast2);
 
       sensor_msgs::PointCloud2 laserCloudSurfLast2;
       pcl::toROSMsg(*laserCloudSurfLast, laserCloudSurfLast2);
       laserCloudSurfLast2.header.stamp = cloudHeader.stamp;
-      laserCloudSurfLast2.header.frame_id = "/camera";
+      laserCloudSurfLast2.header.frame_id = "camera";
       pubLaserCloudSurfLast.publish(laserCloudSurfLast2);
     }
   }

@@ -305,11 +305,11 @@ class mapOptimization {
     downSizeCovMapCornerCloud.setLeafSize(0.2, 0.2, 0.2);
     downSizeCovMapSurfCloud.setLeafSize(0.4, 0.4, 0.4);
 
-    odomAftMapped.header.frame_id = "/camera_init";
-    odomAftMapped.child_frame_id = "/aft_mapped";
+    odomAftMapped.header.frame_id = "camera_init";
+    odomAftMapped.child_frame_id = "aft_mapped";
 
-    aftMappedTrans.frame_id_ = "/camera_init";
-    aftMappedTrans.child_frame_id_ = "/aft_mapped";
+    aftMappedTrans.frame_id_ = "camera_init";
+    aftMappedTrans.child_frame_id_ = "aft_mapped";
 
     allocateMemory();
   }
@@ -811,7 +811,7 @@ class mapOptimization {
       sensor_msgs::PointCloud2 cloudMsgTemp;
       pcl::toROSMsg(*cloudKeyPoses3D, cloudMsgTemp);
       cloudMsgTemp.header.stamp = ros::Time().fromSec(timeLaserOdometry);
-      cloudMsgTemp.header.frame_id = "/camera_init";
+      cloudMsgTemp.header.frame_id = "camera_init";
       pubKeyPoses.publish(cloudMsgTemp);
     }
 
@@ -819,7 +819,7 @@ class mapOptimization {
       sensor_msgs::PointCloud2 cloudMsgTemp;
       pcl::toROSMsg(*laserCloudSurfFromMapDS, cloudMsgTemp);
       cloudMsgTemp.header.stamp = ros::Time().fromSec(timeLaserOdometry);
-      cloudMsgTemp.header.frame_id = "/camera_init";
+      cloudMsgTemp.header.frame_id = "camera_init";
       pubRecentKeyFrames.publish(cloudMsgTemp);
     }
 
@@ -833,7 +833,7 @@ class mapOptimization {
       sensor_msgs::PointCloud2 cloudMsgTemp;
       pcl::toROSMsg(*cloudOut, cloudMsgTemp);
       cloudMsgTemp.header.stamp = ros::Time().fromSec(timeLaserOdometry);
-      cloudMsgTemp.header.frame_id = "/camera_init";
+      cloudMsgTemp.header.frame_id = "camera_init";
       pubRegisteredCloud.publish(cloudMsgTemp);
     }
   }
@@ -923,7 +923,7 @@ class mapOptimization {
     sensor_msgs::PointCloud2 cloudMsgTemp;
     pcl::toROSMsg(*globalMapKeyFramesDS, cloudMsgTemp);
     cloudMsgTemp.header.stamp = ros::Time().fromSec(timeLaserOdometry);
-    cloudMsgTemp.header.frame_id = "/camera_init";
+    cloudMsgTemp.header.frame_id = "camera_init";
     pubLaserCloudSurround.publish(cloudMsgTemp);
 
     globalMapKeyPoses->clear();
@@ -1006,7 +1006,7 @@ class mapOptimization {
       sensor_msgs::PointCloud2 cloudMsgTemp;
       pcl::toROSMsg(*nearHistorySurfKeyFrameCloudDS, cloudMsgTemp);
       cloudMsgTemp.header.stamp = ros::Time().fromSec(timeLaserOdometry);
-      cloudMsgTemp.header.frame_id = "/camera_init";
+      cloudMsgTemp.header.frame_id = "camera_init";
       pubHistoryKeyFrames.publish(cloudMsgTemp);
     }
 
@@ -1052,7 +1052,7 @@ class mapOptimization {
       sensor_msgs::PointCloud2 cloudMsgTemp;
       pcl::toROSMsg(*closed_cloud, cloudMsgTemp);
       cloudMsgTemp.header.stamp = ros::Time().fromSec(timeLaserOdometry);
-      cloudMsgTemp.header.frame_id = "/camera_init";
+      cloudMsgTemp.header.frame_id = "camera_init";
       pubIcpKeyFrames.publish(cloudMsgTemp);
     }
     /*
@@ -1759,7 +1759,7 @@ class mapOptimization {
         pcl::toROSMsg(*CovMapCornerCloudDS, cloudMsgcornerTemp);
         cloudMsgcornerTemp.header.stamp =
             ros::Time().fromSec(timeLaserOdometry);
-        cloudMsgcornerTemp.header.frame_id = "/camera_init";
+        cloudMsgcornerTemp.header.frame_id = "camera_init";
         pubCovMapCornerCloud.publish(cloudMsgcornerTemp);
       }
       // printf ("corner size: %lu", CovMapCornerCloudDS->points.size());
@@ -1771,7 +1771,7 @@ class mapOptimization {
         sensor_msgs::PointCloud2 cloudMsgsurfTemp;
         pcl::toROSMsg(*CovMapSurfCloudDS, cloudMsgsurfTemp);
         cloudMsgsurfTemp.header.stamp = ros::Time().fromSec(timeLaserOdometry);
-        cloudMsgsurfTemp.header.frame_id = "/camera_init";
+        cloudMsgsurfTemp.header.frame_id = "camera_init";
         pubCovMapSurfCloud.publish(cloudMsgsurfTemp);
       }
       // printf ("surf size: %lu", CovMapSurfCloudDS->points.size());
