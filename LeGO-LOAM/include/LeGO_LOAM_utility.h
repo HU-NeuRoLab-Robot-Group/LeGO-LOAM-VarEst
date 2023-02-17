@@ -39,7 +39,7 @@
 
 #include "cloud_msgs/cloud_info.h"
 
-#define PI 3.14159265
+// #define PI M_PI
 
 using namespace std;
 
@@ -145,7 +145,7 @@ struct smoothness_t {
 };
 
 struct by_value {
-  bool operator()(smoothness_t const &left, smoothness_t const &right) {
+  bool operator()(smoothness_t const& left, smoothness_t const& right) {
     return left.value < right.value;
   }
 };
@@ -186,5 +186,21 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(
                                                                  time))
 
 typedef PointXYZIRPYT PointTypePose;
+
+inline void OdometryToTransform(const nav_msgs::Odometry& odometry,
+                                float* transform) {
+  double roll, pitch, yaw;
+  geometry_msgs::Quaternion geoQuat = odometry.pose.pose.orientation;
+  tf::Matrix3x3(tf::Quaternion(geoQuat.z, -geoQuat.x, -geoQuat.y, geoQuat.w))
+      .getRPY(roll, pitch, yaw);
+
+  transform[0] = -pitch;
+  transform[1] = -yaw;
+  transform[2] = roll;
+
+  transform[3] = odometry.pose.pose.position.x;
+  transform[4] = odometry.pose.pose.position.y;
+  transform[5] = odometry.pose.pose.position.z;
+}
 
 #endif
